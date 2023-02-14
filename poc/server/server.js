@@ -13,13 +13,15 @@ const activeGroups = new Map(); // contains total groups created
 io.on("connection", (socket) => {
   const id = socket.id;
   
-  socket.on("create group", () => {
+  socket.on("create group", ({location: location, orderType: orderType}) => {
     const groupId = uuidv4();
     socket.join(groupId);
     const group = {
       ownerId: id,
       live: 1,
-      cart: null
+      cart: null,
+      location: location,
+      orderType: orderType
     };
 
     activeGroups.set(groupId, group);
@@ -35,7 +37,7 @@ io.on("connection", (socket) => {
       const group = activeGroups.get(groupId);
       group.live += 1;
       activeGroups.set(groupId, group);
-      io.to(id).emit("group joined", {live: group.live, ownerId: group.ownerId, cart: group.cart});
+      io.to(id).emit("group joined", {live: group.live, ownerId: group.ownerId, location: group.location, orderType: group.orderType, cart: group.cart});
       socket.broadcast.to(groupId).emit("new join info", {live: group.live});
       console.log("Group Map:", activeGroups);
     } else {

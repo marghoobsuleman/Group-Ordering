@@ -15,37 +15,6 @@
   </template>
 </template>
 
-<!-- <template>
-  <h1>Group Order</h1>
-  <template v-if="groupCreated">
-    <template v-if="!joinedGroup">
-      <h1>Your Group has been created with GroupId: {{ groupID }}</h1><br/>
-      <button @click="goToTheGroup">Go To The Group</button>
-    </template>
-    <template v-else>
-      <h1>Welcome to the group {{ groupID }}</h1>
-      <code v-for="itext in texts"> {{ itext }} <br/></code>
-      <textarea v-model="text"></textarea> <br/>
-      <button @click="sendToGroup">Send to group</button><br/>
-      <button @click="leaveGroup">Leave Group</button>
-    </template>
-  </template>
-  <template v-else-if="joinedGroup">
-    <h1>Welcome to the group {{ groupID }}</h1>
-    <code v-for="itext in texts"> {{ itext }} <br/></code>
-    <textarea v-model="text"></textarea> <br/>
-    <button @click="sendToGroup">Send to group</button>
-    <button @click="leaveGroup">Leave Group</button>
-  </template>
-  <template v-else>
-    <button @click="createGroup">Create group</button>
-    <br/>
-    <input v-model="groupID" type="text" placeholder="Group ID" />
-    <button @click="joinGroup">Join group</button>
-  </template>
-</template> -->
-
-
 <script>
 import socket from "./socket";
 export default {
@@ -57,14 +26,14 @@ export default {
       groupCreated: false,
       iAmTheOwner: false,
       live: 0,
-      text: "",
-      texts: [],
-      cart: null
+      cart: null,
+      location: "vaishali gaziabad",
+      orderType: "DINE_IN"
     }
   },
   methods: {
     createGroup() {
-      socket.emit("create group");
+      socket.emit("create group", {location: this.location, orderType: this.orderType});
     },
     joinGroup() {
       socket.emit("join group", {groupId: this.groupID});
@@ -98,11 +67,13 @@ export default {
       console.log("group info:", infoGroup);
     })
 
-    socket.on("group joined", ({ live: live, ownerId: ownerId, cart: cart }) => {
+    socket.on("group joined", ({ live: live, ownerId: ownerId, location: location, orderType: orderType, cart: cart }) => {
       this.joinedGroup = true;
       this.live = live;
       this.ownerID = ownerId;
       this.cart = cart;
+      this.location = location;
+      this.orderType = orderType;
       const infoGroup = {
         groupId: this.groupID,
         ownerId: this.ownerID,
@@ -110,6 +81,8 @@ export default {
         groupCreated: this.groupCreated,
         iAmTheOwner: this.iAmTheOwner,
         live: this.live,
+        location: this.location,
+        orderType: this.orderType,
         cart: this.cart
       }
       console.log("Welcome to the group");
