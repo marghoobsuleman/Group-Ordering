@@ -9,6 +9,7 @@
   <template v-else>
     <h1>Welcome to the group {{ groupID }}</h1>
     <code v-for="itext in texts"> {{ itext }} <br/></code>
+    <qrcode-vue :value="value" :size="size" level="H" /><br/>
     <!-- <textarea v-model="text"></textarea> <br/> -->
     <button @click="sendToGroup">Update Cart</button><br/>
     <button @click="leaveGroup">Leave Group</button>
@@ -17,7 +18,11 @@
 
 <script>
 import socket from "./socket";
+import QrcodeVue from 'qrcode.vue'
 export default {
+  components: {
+      QrcodeVue,
+  },
   data() {
     return {
       groupID: null,
@@ -30,12 +35,14 @@ export default {
       location: "vaishali gaziabad",
       orderInitiated: false,
       totalAmount: 0,
-      message: "PIZZA MANIA ADDED TO THE CART",  
+      message: "PIZZA MANIA ADDED TO THE CART",
+      value: 'https://pizzaonline.dominos.co.in/menu?offline=false',
+      size: 300,  
     }
   },
   methods: {
     createGroup() {
-      socket.emit("CREATE_GROUP", {location: this.location, totalParticipants: 10, numberOfVeg: 5});
+      socket.emit("CREATE_GROUP", {location: this.location, totalParticipants: 10, numberOfNonVeg: 5});
     },
     joinGroup() {
       socket.emit("JOIN_GROUP", {groupId: this.groupID});
