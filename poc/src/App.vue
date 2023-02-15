@@ -28,25 +28,27 @@ export default {
       live: 0,
       cart: null,
       location: "vaishali gaziabad",
-      orderInitiated: false,    
+      orderInitiated: false,
+      totalAmount: 0,
+      message: "PIZZA MANIA ADDED TO THE CART",  
     }
   },
   methods: {
     createGroup() {
-      socket.emit("create group", {location: this.location});
+      socket.emit("CREATE_GROUP", {location: this.location, totalParticipants: 10, numberOfVeg: 5});
     },
     joinGroup() {
-      socket.emit("join group", {groupId: this.groupID});
+      socket.emit("JOIN_GROUP", {groupId: this.groupID});
     },
     leaveGroup() {
-      socket.emit("leave group", {groupId: this.groupID, ownerId: this.ownerID});
+      socket.emit("LEAVE_GROUP", {groupId: this.groupID, isOwner: this.iAmTheOwner});
     },
     sendToGroup() {
-      socket.emit("emit update cart", { groupId: this.groupID, cart: [{menuCode: "PIZ001"},{menuCode: "PIZ002"},{menuCode: "PIZ003"}], message: message});
+      socket.emit("EMIT_UPDATE_CART", { groupId: this.groupID, cart: [{menuCode: "PIZ001"},{menuCode: "PIZ002"},{menuCode: "PIZ003"}], message: this.message, amount: 1000});
     },
   },
   created() {
-    socket.on("group created", ({ groupId: groupId, ownerId: id, live: live }) => {
+    socket.on("GROUP_CREATED", ({ groupId: groupId, ownerId: id, live: live }) => {
       // pass userId generated when user loggedIn and it will act as groupId
       this.groupID = groupId;
       this.ownerID = id;
@@ -67,7 +69,7 @@ export default {
       console.log("group info:", infoGroup);
     })
 
-    socket.on("group joined", ({ live: live, ownerId: ownerId, location: location, cart: cart }) => {
+    socket.on("GROUP_JOINED", ({ live: live, ownerId: ownerId, location: location, cart: cart }) => {
       this.joinedGroup = true;
       this.live = live;
       this.ownerID = ownerId;
@@ -87,7 +89,7 @@ export default {
       console.log("group info:", infoGroup);
     })
 
-    socket.on("new join info", ({ live: live }) => {
+    socket.on("NEW_JOIN_INFO", ({ live: live }) => {
       this.live = live;
       const infoGroup = {
         groupId: this.groupID,
@@ -102,7 +104,7 @@ export default {
       console.log("group info:", infoGroup);
     })
 
-    socket.on("owner left", (message) => {
+    socket.on("OWNER_LEFT", (message) => {
       this.groupCreated = false;
       this.joinedGroup = false;
       this.ownerID = null;
@@ -110,6 +112,7 @@ export default {
       this.groupID = null;
       this.live = 0;
       this.cart = null;
+      this.totalAmount = 0;
       const infoGroup = {
         groupId: this.groupID,
         ownerId: this.ownerID,
@@ -117,13 +120,14 @@ export default {
         groupCreated: this.groupCreated,
         iAmTheOwner: this.iAmTheOwner,
         live: this.live,
-        cart: this.cart
+        cart: this.cart,
+        totalAmount: this.totalAmount
       }
       console.log("message:", message);
       console.log("group info:", infoGroup);
     })
 
-    socket.on("participant left", ({live: live}) => {
+    socket.on("PARTICIPANT_LEFT", ({live: live}) => {
       // any other participant left the group
       this.live = live;
       const infoGroup = {
@@ -138,17 +142,23 @@ export default {
       console.log("group info:", infoGroup);
     })
 
-    socket.on("group not exist", () => {
+    socket.on("GROUP_NOT_EXIST", () => {
       console.log("group does not exisit");
     })
 
-    socket.on("listen update cart", ({cart: cart}) => {
-      this.texts.push(cart);
+    socket.on("LISTEN_UPDATE_CART", ({cart: cart, amount: amount}) => {
+      this.totalAmount = amount;
+      this.texts = cart;
       console.log("cartItems:", cart);
     })
 
-    socket.on("order initiated", ({amount: amount}) =>{
+    socket.on("LISTEN_RECOMMENDATION", ({recommendation: recommendationsMap}) => {
+      console.log(recommendationsMap);
+    })
+
+    socket.on("ORDER_INITIATED", ({amount: amount}) => {
       this.orderInitiated = true;
+      this.amount = amount;
       console.log()
 
     })
