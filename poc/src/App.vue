@@ -28,12 +28,12 @@ export default {
       live: 0,
       cart: null,
       location: "vaishali gaziabad",
-      orderType: "DINE_IN"
+      orderInitiated: false,    
     }
   },
   methods: {
     createGroup() {
-      socket.emit("create group", {location: this.location, orderType: this.orderType});
+      socket.emit("create group", {location: this.location});
     },
     joinGroup() {
       socket.emit("join group", {groupId: this.groupID});
@@ -42,7 +42,7 @@ export default {
       socket.emit("leave group", {groupId: this.groupID, ownerId: this.ownerID});
     },
     sendToGroup() {
-      socket.emit("emit update cart", { groupId: this.groupID, cart: [{menuCode: "PIZ001"},{menuCode: "PIZ002"},{menuCode: "PIZ003"}]});
+      socket.emit("emit update cart", { groupId: this.groupID, cart: [{menuCode: "PIZ001"},{menuCode: "PIZ002"},{menuCode: "PIZ003"}], message: message});
     },
   },
   created() {
@@ -67,13 +67,12 @@ export default {
       console.log("group info:", infoGroup);
     })
 
-    socket.on("group joined", ({ live: live, ownerId: ownerId, location: location, orderType: orderType, cart: cart }) => {
+    socket.on("group joined", ({ live: live, ownerId: ownerId, location: location, cart: cart }) => {
       this.joinedGroup = true;
       this.live = live;
       this.ownerID = ownerId;
       this.cart = cart;
       this.location = location;
-      this.orderType = orderType;
       const infoGroup = {
         groupId: this.groupID,
         ownerId: this.ownerID,
@@ -82,7 +81,6 @@ export default {
         iAmTheOwner: this.iAmTheOwner,
         live: this.live,
         location: this.location,
-        orderType: this.orderType,
         cart: this.cart
       }
       console.log("Welcome to the group");
@@ -147,6 +145,12 @@ export default {
     socket.on("listen update cart", ({cart: cart}) => {
       this.texts.push(cart);
       console.log("cartItems:", cart);
+    })
+
+    socket.on("order initiated", ({amount: amount}) =>{
+      this.orderInitiated = true;
+      console.log()
+
     })
 
   }
