@@ -167,6 +167,7 @@ io.on("connection", (socket) => {
       console.log("Group has been deleted:", groupId);
     } else if (participantMap.has(id)) {
       // participant left the group --> live--
+      const groupId = participantMap.get(id);
       participantMap.delete(id);
       const group = activeGroups.get(groupId);
       group.live -= 1;
