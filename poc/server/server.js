@@ -156,10 +156,15 @@ io.on("connection", (socket) => {
 
   socket.on("disconnect", () => {
     if(ownerMap.has(id)){
-      activeGroups.delete(ownerMap.get(id));
+      const groupId = ownerMap.get(id);
+      activeGroups.delete(groupId);
       // redis delete
-      redisClient.del(ownerMap.get(id));
+      redisClient.del(groupId);
       redisClient.del(id);
+
+      socket.broadcast.to(groupId).emit(EVENTS.ON_OWNER_LEFT, "This group does not exist");
+      io.to(id).emit(EVENTS.ON_OWNER_LEFT, "You deleted this group.");
+      console.log("Group has been deleted:", groupId);
     } else if (participantMap.has(id)) {
       // participant left the group --> live--
       participantMap.delete(id);
