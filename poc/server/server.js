@@ -1,8 +1,7 @@
 const http = require("http");
 const socket = require("socket.io");
-const {v4 : uuidv4} = require('uuid')
+const {v4 : uuidv4} = require('uuid');
 const redis = require("redis");
-// const QRCode = require('qrcode')
 const httpServer = http.createServer();
 const io = socket(httpServer, {
   cors: {
@@ -28,8 +27,6 @@ const EVENTS = {
   ON_LISTEN_UPDATE_CART: "LISTEN_UPDATE_CART",
 };
 
-
-
 let redisClient;
 
 (async () => {
@@ -44,7 +41,7 @@ let redisClient;
 
 const activeGroups = new Map(); // contains total groups created
 const ownerMap = new Map(); // maps ownerId to groupId
-const recommendationsMap = new Map();
+const recommendationsMap = new Map(); // items will be suggested
 
 
 io.on("connection", (socket) => {
@@ -52,14 +49,9 @@ io.on("connection", (socket) => {
   
   socket.on(EVENTS.ON_CREATE_GROUP, ({location: location, totalParticipants: totalParticipants, numberOfNonVeg: numberOfNonVeg}) => {
     const groupId = uuidv4();
-    // let stringdata = JSON.stringify(groupId);
-  //   QRCode.toDataURL(stringdata, function (err, code) {
-  //     if(err) return console.log("error occurred")
-  //     // Printing the code
-  //     console.log(code)
-  // })
     socket.join(groupId);
     ownerMap.set(id, groupId);
+
     const group = {
       ownerId: id,
       live: 1,
@@ -69,6 +61,7 @@ io.on("connection", (socket) => {
       numberOfNonVeg: numberOfNonVeg,
     };
     activeGroups.set(groupId, group);
+
     // redis set
     redisClient.set(groupId, JSON.stringify(group));
     redisClient.set(id, groupId);
