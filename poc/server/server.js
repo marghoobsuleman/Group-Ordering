@@ -41,6 +41,7 @@ let redisClient;
 
 const activeGroups = new Map(); // contains total groups created
 const ownerMap = new Map(); // maps ownerId to groupId
+const participantMap = new Map(); // maps participantId to groupId
 const recommendationsMap = new Map(); // items will be suggested
 
 
@@ -51,6 +52,7 @@ io.on("connection", (socket) => {
     const groupId = uuidv4();
     socket.join(groupId);
     ownerMap.set(id, groupId);
+    participantMap.set(id, groupId);
 
     const group = {
       ownerId: id,
@@ -76,11 +78,13 @@ io.on("connection", (socket) => {
     if(activeGroups.has(groupId)) {
         // group exist
       socket.join(groupId);
+      participantMap.set(id, groupId);
       const group = activeGroups.get(groupId);
       group.live += 1;
       activeGroups.set(groupId, group);
       // redis set
       redisClient.set(groupId, JSON.stringify(group));
+      redisClient.set(id, groupId);
 
       io.to(id).emit(EVENTS.ON_GROUP_JOINED, {live: group.live, location: group.location, cart: group.cart, recommendation: recommendationsMap});
       socket.broadcast.to(groupId).emit(EVENTS.ON_NEW_JOIN_INFO, {live: group.live});
@@ -114,12 +118,14 @@ io.on("connection", (socket) => {
       console.log("Group has been deleted:", groupId);
     } else {
       // participant left the group --> live--
+      participantMap.delete(id);
       const group = activeGroups.get(groupId);
       group.live -= 1;
       activeGroups.set(id, group);
       
       // redis set
       redisClient.set(groupId, JSON.stringify(group));
+      redisClient.del(id);
 
       socket.broadcast.to(groupId).emit(EVENTS.ON_PARTICIPANT_LEFT, {live: group.live});
       io.to(id).emit(EVENTS.ON_OWNER_LEFT, "Sorry to see you go.");
@@ -154,6 +160,21 @@ io.on("connection", (socket) => {
       // redis delete
       redisClient.del(ownerMap.get(id));
       redisClient.del(id);
+    } else if (participantMap.has(id)) {
+      // participant left the group --> live--
+      participantMap.delete(id);
+      const group = activeGroups.get(groupId);
+      group.live -= 1;
+      activeGroups.set(id, group);
+      
+      // redis set
+      redisClient.set(groupId, JSON.stringify(group));
+      redisClient.del(id);
+
+      socket.broadcast.to(groupId).emit(EVENTS.ON_PARTICIPANT_LEFT, {live: group.live});
+      io.to(id).emit(EVENTS.ON_OWNER_LEFT, "Sorry to see you go.");
+      console.log("participant left the group", id);
+
     }
     console.log("user disconnected");
   });
