@@ -4,8 +4,12 @@ const {v4 : uuidv4} = require('uuid');
 const redis = require("redis");
 const httpServer = http.createServer();
 const io = socket(httpServer, {
+  path: "/jfl-discovery-ui",
+  allowEIO3: true,
+  transports: ["websocket"],
   cors: {
-    origin: "http://localhost:5173",
+    origin: "*", //hoisted api origin
+    methods: ["GET", "POST"],
   },
 });
 
@@ -42,8 +46,23 @@ let redisClient;
 const activeGroups = new Map(); // contains total groups created
 const ownerMap = new Map(); // maps ownerId to groupId
 const participantMap = new Map(); // maps participantId to groupId
-const recommendationsMap = new Map(); // items will be suggested
-
+ // items will be suggested
+const recommendationsMap = {
+  1: {r: 1, m: 0, l: 0},
+  2: {r: 0, m: 1, l: 0},
+  3: {r: 1, m: 1, l: 0},
+  4: {r: 1, m: 2, l: 0},
+  5: {r: 0, m: 1, l: 1},
+  6: {r: 1, m: 1, l: 1},
+  7: {r: 2, m: 1, l: 1},
+  8: {r: 1, m: 2, l: 1},
+  9: {r: 0, m: 2, l: 2},
+  10: {r: 1, m: 2, l: 2},
+  11: {r: 2, m: 2, l: 2},
+  12: {r: 3, m: 2, l: 2},
+  13: {r: 2, m: 3, l: 2},
+  14: {r: 1, m: 2, l: 3}
+}
 
 io.on("connection", (socket) => {
   const id = socket.id;
@@ -68,7 +87,7 @@ io.on("connection", (socket) => {
     redisClient.set(groupId, JSON.stringify(group));
     redisClient.set(id, groupId);
 
-    io.to(id).emit(EVENTS.ON_GROUP_CREATED, { groupId: groupId, ownerId: id, live: 1, recommendation: recommendationsMap });
+    io.to(id).emit(EVENTS.ON_GROUP_CREATED, { groupId: groupId, ownerId: id, live: 1, recommendation: recommendationsMap[totalParticipants] });
     console.log("group created with groupId", groupId);
     console.log("Group Map:", activeGroups);
   });
@@ -189,7 +208,7 @@ io.on("connection", (socket) => {
   console.log("Group Map:", activeGroups);
 });
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 5000;
 
 httpServer.listen(PORT, () =>
   console.log(`server listening at http://localhost:${PORT}`)
