@@ -165,7 +165,7 @@ io.on("connection", (socket) => {
       socket.broadcast.to(groupId).emit(EVENTS.ON_OWNER_LEFT, "This group does not exist");
       io.to(id).emit(EVENTS.ON_OWNER_LEFT, "You deleted this group.");
       console.log("Group has been deleted:", groupId);
-    } else if (participantMap.has(id)) {
+    } else if (participantMap.has(id) && activeGroups.has(participantMap.get(id))) {
       // participant left the group --> live--
       const groupId = participantMap.get(id);
       participantMap.delete(id);
