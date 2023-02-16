@@ -10,10 +10,32 @@ const io = socket(httpServer, {
   },
 });
 
+const EVENTS = {
+  ON_CREATE_GROUP: "CREATE_GROUP",
+  ON_GROUP_CREATED: "GROUP_CREATED",
+  ON_JOIN_GROUP: "JOIN_GROUP",
+  ON_GROUP_JOINED: "GROUP_JOINED",
+  ON_NEW_JOIN_INFO: "NEW_JOIN_INFO",
+  ON_LEAVE_GROUP: "LEAVE_GROUP",
+  ON_OWNER_LEFT: "OWNER_LEFT",
+  ON_PARTICIPANT_LEFT: "PARTICIPANT_LEFT",
+  ON_LISTEN_UPDATE_CART: "LISTEN_UPDATE_CART",
+  ON_PLACING_ORDER: "PLACING_ORDER",
+  ON_ORDER_INITIATED: "ORDER_INITIATED",
+  ON_EMIT_RECOMMENDATION: "EMIT_RECOMMENDATION",
+  ON_GROUP_NOT_EXIST: "GROUP_NOT_EXIST",
+  ON_EMIT_UPDATE_CART: "EMIT_UPDATE_CART",
+  ON_LISTEN_UPDATE_CART: "LISTEN_UPDATE_CART",
+};
+
+
+
 let redisClient;
 
 (async () => {
-  redisClient = redis.createClient();
+  redisClient = redis.createClient({
+    url: 'redis://localhost:6379'
+  });
 
   redisClient.on("error", (error) => console.error(`Error : ${error}`));
 
@@ -24,10 +46,11 @@ const activeGroups = new Map(); // contains total groups created
 const ownerMap = new Map(); // maps ownerId to groupId
 const recommendationsMap = new Map();
 
+
 io.on("connection", (socket) => {
   const id = socket.id;
   
-  socket.on("CREATE_GROUP", ({location: location, totalParticipants: totalParticipants, numberOfNonVeg: numberOfNonVeg}) => {
+  socket.on(EVENTS.ON_CREATE_GROUP, ({location: location, totalParticipants: totalParticipants, numberOfNonVeg: numberOfNonVeg}) => {
     const groupId = uuidv4();
     // let stringdata = JSON.stringify(groupId);
   //   QRCode.toDataURL(stringdata, function (err, code) {
@@ -50,12 +73,12 @@ io.on("connection", (socket) => {
     redisClient.set(groupId, JSON.stringify(group));
     redisClient.set(id, groupId);
 
-    io.to(id).emit("GROUP_CREATED", { groupId: groupId, ownerId: id, live: 1 });
+    io.to(id).emit(EVENTS.ON_GROUP_CREATED, { groupId: groupId, ownerId: id, live: 1, recommendation: recommendationsMap });
     console.log("group created with groupId", groupId);
     console.log("Group Map:", activeGroups);
   });
 
-  socket.on("JOIN_GROUP", ({groupId: groupId }) => {
+  socket.on(EVENTS.ON_JOIN_GROUP, ({groupId: groupId }) => {
 
     if(activeGroups.has(groupId)) {
         // group exist
@@ -66,16 +89,16 @@ io.on("connection", (socket) => {
       // redis set
       redisClient.set(groupId, JSON.stringify(group));
 
-      io.to(id).emit("GROUP_JOINED", {live: group.live, ownerId: group.ownerId, location: group.location, cart: group.cart});
-      socket.broadcast.to(groupId).emit("NEW_JOIN_INFO", {live: group.live});
+      io.to(id).emit(EVENTS.ON_GROUP_JOINED, {live: group.live, location: group.location, cart: group.cart, recommendation: recommendationsMap});
+      socket.broadcast.to(groupId).emit(EVENTS.ON_NEW_JOIN_INFO, {live: group.live});
       console.log("Group Map:", activeGroups);
     } else {
         // group doest not exist
-        io.to(id).emit("group not exist");
+        io.to(id).emit(EVENTS.ON_GROUP_NOT_EXIST);
     }
   });
 
-  socket.on("LEAVE_GROUP", ({groupId: groupId, isOwner: isOwner}) => {
+  socket.on(EVENTS.ON_LEAVE_GROUP, ({groupId: groupId, isOwner: isOwner}) => {
     if(groupId == null) {
       console.log("Non Participants disconnected");
       return;
@@ -93,8 +116,8 @@ io.on("connection", (socket) => {
       redisClient.del(groupId);
       redisClient.del(id);
 
-      socket.broadcast.to(groupId).emit("OWNER_LEFT", "This group does not exist");
-      io.to(id).emit("OWNER_LEFT", "You deleted this group.");
+      socket.broadcast.to(groupId).emit(EVENTS.ON_OWNER_LEFT, "This group does not exist");
+      io.to(id).emit(EVENTS.ON_OWNER_LEFT, "You deleted this group.");
       console.log("Group has been deleted:", groupId);
     } else {
       // participant left the group --> live--
@@ -105,26 +128,26 @@ io.on("connection", (socket) => {
       // redis set
       redisClient.set(groupId, JSON.stringify(group));
 
-      socket.broadcast.to(groupId).emit("PARTICIPANT_LEFT", {live: group.live});
-      io.to(id).emit("OWNER_LEFT", "Sorry to see you go.");
+      socket.broadcast.to(groupId).emit(EVENTS.ON_PARTICIPANT_LEFT, {live: group.live});
+      io.to(id).emit(EVENTS.ON_OWNER_LEFT, "Sorry to see you go.");
       console.log("participant left the group", id);
     }
     console.log("Group Map:", activeGroups);
   })
 
-  socket.on("EMIT_UPDATE_CART", ({ groupId: groupId, cart: items, message: message}) => {
+  socket.on(EVENTS.ON_EMIT_UPDATE_CART, ({ groupId: groupId, cart: items, message: message}) => {
     const group = activeGroups.get(groupId);
     group.cart = items;
     activeGroups.set(groupId, group);
     // redis set
     redisClient.set(groupId, JSON.stringify(group));
 
-    socket.broadcast.to(groupId).emit("LISTEN_UPDATE_CART", {cart: group.cart, message: message});
+    socket.broadcast.to(groupId).emit(EVENTS.ON_LISTEN_UPDATE_CART, {cart: group.cart, message: message});
     console.log("Group Map:", activeGroups);
   });
 
-  socket.on("PLACING_ORDER", ({groupId: groupId, amount: amount}) => {
-    socket.broadcast.to(groupId).emit("ORDER_INITIATED", {amount: amount});
+  socket.on(EVENTS.ON_PLACING_ORDER, ({groupId: groupId, amount: amount}) => {
+    socket.broadcast.to(groupId).emit(EVENTS.ON_ORDER_INITIATED, {amount: amount});
     activeGroups.delete(groupId);
     // redis delete
     redisClient.del(groupId);
@@ -132,15 +155,11 @@ io.on("connection", (socket) => {
     console.log("Group Map", activeGroups);
   })
 
-  socket.on("EMIT_RECOMMENDATION", () => {
-      io.to(id).emit("LISTEN_RECOMMENDATION", {recommendation: recommendationsMap});
-  })
-
   socket.on("disconnect", () => {
     if(ownerMap.has(id)){
       activeGroups.delete(ownerMap.get(id));
       // redis delete
-      redisClient.del(groupId);
+      redisClient.del(ownerMap.get(id));
       redisClient.del(id);
     }
     console.log("user disconnected");
